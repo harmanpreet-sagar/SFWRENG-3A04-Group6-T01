@@ -1,0 +1,22 @@
+@startuml api_facade_state
+
+[*] --> Idle
+
+Idle --> ReceiveRequest : apiRequest()
+ReceiveRequest --> ValidateRequest
+
+ValidateRequest --> Error : invalid request
+ValidateRequest --> AuthorizeRequest : valid request
+
+AuthorizeRequest --> Error : unauthorized
+AuthorizeRequest --> DispatchRequest : authorized
+
+DispatchRequest --> FormatResponse : result received
+DispatchRequest --> Error : processing failed
+
+FormatResponse --> ReturnResponse
+ReturnResponse --> Idle
+
+Error --> Idle
+
+@enduml
