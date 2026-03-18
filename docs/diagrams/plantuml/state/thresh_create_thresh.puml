@@ -1,8 +1,6 @@
 @startuml thresh_create_threshold
 
-[*] --> Idle
-
-Idle --> InputThresholdData : create threshold
+[*] --> InputThresholdData : create threshold
 InputThresholdData --> ValidateData : submit details
 
 ValidateData --> Error : invalid input
@@ -12,7 +10,7 @@ CreateThreshold --> SaveThreshold
 SaveThreshold --> Success : saved
 SaveThreshold --> Error : save failed
 
-Success --> Idle
-Error --> Idle
+Success --> [*]
+Error --> [*]
 
 @enduml
