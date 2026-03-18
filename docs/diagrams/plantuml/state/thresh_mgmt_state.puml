@@ -1,8 +1,6 @@
 @startuml threshold_mgmt_state
 
-[*] --> Idle
-
-Idle --> ReceiveRequest : user action
+[*] --> ReceiveRequest : user action
 
 ReceiveRequest --> ValidateInput
 
@@ -20,7 +18,7 @@ DeleteThreshold --> WriteToDB
 WriteToDB --> Success
 WriteToDB --> Error : db failure
 
-Success --> Idle
-Error --> Idle
+Success --> [*]
+Error --> [*]
 
 @enduml
