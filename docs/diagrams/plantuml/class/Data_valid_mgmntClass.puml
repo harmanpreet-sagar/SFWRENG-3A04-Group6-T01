@@ -1,5 +1,17 @@
 @startuml
 
+' ========================
+' Single Interface
+' ========================
+
+interface IValidationComponent {
+  + execute(): void
+}
+
+' ========================
+' Classes
+' ========================
+
 class DataValidationManagement {
   + validateIncomingData(): void
   + coordinateValidation(): void
@@ -30,15 +42,26 @@ class ValidSensorDataDB {
   + retrieveHistoricalData(): List
 }
 
-' Relationships (kept simple like your teammate’s)
+' ========================
+' Interface Implementation
+' ========================
 
-DataValidationManagement -- EnsureMQTTCompliance
-DataValidationManagement -- SensorMonitor
-DataValidationManagement -- StoreValidatedData
+IValidationComponent <|.. EnsureMQTTCompliance : implements
+IValidationComponent <|.. SensorMonitor : implements
+IValidationComponent <|.. StoreValidatedData : implements
 
-EnsureMQTTCompliance -- ValidationEventLog
+' ========================
+' Controller depends on interface
+' ========================
 
-SensorMonitor -- ValidSensorDataDB
-StoreValidatedData -- ValidSensorDataDB
+DataValidationManagement --> IValidationComponent : uses / depends on
+
+' ========================
+' Other relationships (labeled)
+' ========================
+
+EnsureMQTTCompliance --> ValidationEventLog : logs events
+SensorMonitor --> ValidSensorDataDB : reads historical data
+StoreValidatedData --> ValidSensorDataDB : stores validated data
 
 @enduml
