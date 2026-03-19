@@ -1,23 +1,45 @@
 @startuml ThresholdManagement_ClassDiagram
 
+class ThresholdAdminAgent {
+  +initiateThresholdOperation(req : Request)
+}
+
+class APIFacade {
+  +apiRequest(req : Request)
+  +validateRequest(req : Request) : Boolean
+  +authorizeRequest(req : Request) : Boolean
+  +dispatchRequest(req : Request) : Result
+  +formatResponse(result : Result) : Response
+  +returnResponse(resp : Response)
+}
+
+interface IThresholdService {
+  +receiveRequest(action : String)
+  +validateInput(data : Map) : Boolean
+  +processAction(action : String, data : Map)
+}
+
 class HighLevelUI {
+  -thresholdList : List<Threshold>
   +displayThresholds()
   +displayForm()
   +displayConfirmation()
   +displayError(msg : String)
 }
 
-class APIFacade {
-  +routeToThresholdMgmt(req : Request)
-}
-
 class ThresholdManagement {
+  -action : String
+  -data : Map
   +receiveRequest(action : String)
   +validateInput(data : Map) : Boolean
   +processAction(action : String, data : Map)
 }
 
 class CreateThreshold {
+  -metricType : String
+  -zone : String
+  -condition : String
+  -severityLevel : String
   +inputThresholdData() : Map
   +validateData(data : Map) : Boolean
   +createThreshold(data : Map) : Threshold
@@ -25,6 +47,9 @@ class CreateThreshold {
 }
 
 class EditThreshold {
+  -id : int
+  -threshold : Threshold
+  -changes : Map
   +loadThreshold(id : int) : Threshold
   +editThreshold(t : Threshold, changes : Map)
   +validateChanges(changes : Map) : Boolean
@@ -32,6 +57,9 @@ class EditThreshold {
 }
 
 class DeleteThreshold {
+  -id : int
+  -threshold : Threshold
+  -confirmed : Boolean
   +receiveDeleteRequest(id : int)
   +retrieveThreshold(id : int) : Threshold
   +deleteThreshold(t : Threshold)
@@ -48,6 +76,7 @@ interface IThresholdRepository {
 }
 
 entity ThresholdDB {
+  -threshold : Threshold
   +save(t : Threshold)
   +update(t : Threshold)
   +delete(id : int)
@@ -73,16 +102,35 @@ entity Threshold {
 class AlertsManagement {
 }
 
-HighLevelUI --> ThresholdManagement : uses
-APIFacade --> ThresholdManagement : routes to
-ThresholdManagement --> CreateThreshold : delegates
-ThresholdManagement --> EditThreshold : delegates
-ThresholdManagement --> DeleteThreshold : delegates
-CreateThreshold ..> IThresholdRepository : uses
-EditThreshold ..> IThresholdRepository : uses
-DeleteThreshold ..> IThresholdRepository : uses
-ThresholdDB ..|> IThresholdRepository : implements
-ThresholdDB *-- Threshold : stores
-ThresholdDB --> AlertsManagement : supplies thresholds to
+' Boundary → APIFacade
+ThresholdAdminAgent --> APIFacade          : sends request to
+
+' APIFacade routes through interface
+APIFacade --> IThresholdService            : routes to
+
+' HighLevelUI communicates with ThresholdManagement directly (display layer)
+HighLevelUI --> ThresholdManagement        : uses
+
+' ThresholdManagement implements the service interface
+ThresholdManagement ..|> IThresholdService : implements
+
+' ThresholdManagement delegates to operation controllers
+ThresholdManagement --> CreateThreshold    : delegates
+ThresholdManagement --> EditThreshold      : delegates
+ThresholdManagement --> DeleteThreshold    : delegates
+
+' Operation controllers depend on the repository interface
+CreateThreshold ..> IThresholdRepository   : uses
+EditThreshold ..> IThresholdRepository     : uses
+DeleteThreshold ..> IThresholdRepository   : uses
+
+' ThresholdDB implements the repository interface
+ThresholdDB ..|> IThresholdRepository      : implements
+
+' ThresholdDB owns Threshold records
+ThresholdDB *-- Threshold                  : stores
+
+' ThresholdDB supplies active thresholds to AlertsManagement
+ThresholdDB --> AlertsManagement           : supplies thresholds to
 
 @enduml
