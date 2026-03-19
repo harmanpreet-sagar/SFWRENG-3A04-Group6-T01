@@ -7,7 +7,7 @@ state "EvaluateThresholdViolations\n----\nvalidatedReadings\nactiveThresholds\nt
 
 state "DetectAnomalousTrends\n----\naggregatedData\nanomalyDetected" as DetectAnomalousTrends : analyze aggregated environmental data for anomalous trends
 
-state "CreateAlert\n----\nalertDetails\nsourceType\nalertStatus = ACTIVE" as CreateAlert : create alert and store it in AlertsDB
+state "CreateAlert\n----\nalertDetails\nsourceType\nalertStatus" as CreateAlert : create alert and store it in AlertsDB
 
 state "UpdateAlertStatus\n----\nalertId\nnewStatus\nupdatedAt" as UpdateAlertStatus : update alert status in AlertsDB
 
