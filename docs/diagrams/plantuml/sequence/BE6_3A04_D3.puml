@@ -1,0 +1,11 @@
+@startuml
+activate User
+User   ->  User     ++   : research API
+User     ->  APIMngmnt ++ : make request
+APIMngmnt -> ReportMaker ++ : send details
+ReportMaker --> APIMngmnt -- : return report
+APIMngmnt --> User -- : provide services
+deactivate User
+<- User -- : done
+deactivate User
+@enduml
