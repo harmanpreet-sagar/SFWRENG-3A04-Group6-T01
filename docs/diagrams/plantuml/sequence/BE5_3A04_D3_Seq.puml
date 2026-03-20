@@ -1,0 +1,10 @@
+@startuml
+activate User
+User   ->  UserAuth     ++   : enter details
+UserAuth     ->  AccountMngmnt ++ : authenticate user
+AccountMngmnt -> AccountDB ++ : save edits
+AccountDB --> AccountMngmnt -- : notify success
+AccountMngmnt --> UserAuth   --  : confirm edits
+UserAuth --> User -- : notify completion
+<- User -- : done
+@enduml
