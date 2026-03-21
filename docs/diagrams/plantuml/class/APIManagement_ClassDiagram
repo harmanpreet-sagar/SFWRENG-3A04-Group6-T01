@@ -1,6 +1,6 @@
 @startuml APIManagement
 
-class APIManagement <<controller>> {
+class APIManagement {
   + processReadOnlyRequest(request: APIRequest): APIResponse
   + validateRequest(request: APIRequest): boolean
   + enforceRateLimit(request: APIRequest): boolean
