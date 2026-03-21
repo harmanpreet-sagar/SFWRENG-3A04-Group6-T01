@@ -34,6 +34,7 @@ UpdateAlertStatus --> AlertError : status update fails
 
 PublishAlertUpdate --> Monitoring : update published
 PublishAlertUpdate --> AlertError : notification fails
+PublishAlertUpdate--> [*] : notification succeeds
 
 AlertError --> Monitoring : retry
 
