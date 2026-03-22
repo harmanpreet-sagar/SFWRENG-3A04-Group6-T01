@@ -1,40 +1,34 @@
 @startuml AggregationManagement_ClassDiagram
+title Aggregation Management
 
-' =========================
-' BOUNDARY
-' =========================
-class DashboardAgent {
-  +displayData(data : Map)
-  +displayAlert(alert : Alert)
+' ─── External stubs ──────────────────────────────────────────
+class APIFacade <<external>> {
+  +dispatchRequest(req : Request)
 }
 
-' =========================
-' API FACADE
-' =========================
-class APIFacade {
-  -req : Request
-  -result : Result
-  -resp : Response
-  +apiRequest(req : Request)
-  +validateRequest(req : Request) : Boolean
-  +authorizeRequest(req : Request) : Boolean
-  +dispatchRequest(req : Request) : Result
-  +formatResponse(result : Result) : Response
-  +returnResponse(resp : Response)
-}
-
-' =========================
-' SERVICE INTERFACE
-' =========================
-interface IAggregationService {
-  -data : Map
+interface IAggregationService <<external>> {
   +performAggregations()
   +showDataToDashboards(data : Map)
 }
 
-' =========================
-' AGGREGATION MANAGEMENT
-' =========================
+class DashboardAgent <<external>> {
+  +displayData(data : Map)
+  +refreshView()
+}
+
+entity ValidSensorDataDB <<external>> {
+  +getValidatedSensorData() : List
+}
+
+class AlertsManagement <<external>> {
+  +detectAnomalousTrends()
+}
+
+class APIManagement <<external>> {
+  +fetchAggregatedData(zoneId : String, metric : String) : List
+}
+
+' ─── Own classes ─────────────────────────────────────────────
 class AggregationManagement {
   -data : Map
   +performAggregations()
@@ -55,9 +49,6 @@ class ShowDataToDashboards {
   +sendDataToDashboard(data : Map)
 }
 
-' =========================
-' REPOSITORY INTERFACE
-' =========================
 interface IAggregatedDataRepository {
   +save(d : AggregatedData)
   +findByZone(zone : String) : List
@@ -65,15 +56,13 @@ interface IAggregatedDataRepository {
   +findLatest(zone : String) : AggregatedData
 }
 
-' =========================
-' DB ENTITY
-' =========================
 entity AggregatedEnvironmentalDataDB {
   -aggregatedData : AggregatedData
   +save(d : AggregatedData)
   +findByZone(zone : String) : List
   +findByInterval(interval : String) : List
   +findLatest(zone : String) : AggregatedData
+  +getAggregatedEnvironmentalData(zoneId : String, metric : String) : List
 }
 
 entity AggregatedData {
@@ -86,67 +75,22 @@ entity AggregatedData {
   +getSummary() : Map
 }
 
-' =========================
-' EXTERNAL CONSUMERS
-' (owned elsewhere, directly read AggregatedEnvironmentalDataDB)
-' =========================
-class AlertsManagement {
-  -data : Map
-  -violation : Map
-  +evaluateTelemetry(data : Map)
-  +generateAlert(violation : Map) : Alert
-  +updateAlertStatus(id : int, status : String)
-}
-
-class APIManagement {
-  +handleRequest()
-  +validateRequest()
-  +rateLimitRequest()
-  +returnAggregatedData()
-}
-
-' External DB this subsystem reads from (owned by Data Validation)
-entity ValidSensorDataDB
-
-' =========================
-' RELATIONSHIPS
-' =========================
-
-' Boundary triggers APIFacade
-DashboardAgent --> APIFacade
-
-' APIFacade routes through service interface
-APIFacade --> IAggregationService
-
-' AggregationManagement implements service interface
+' ─── Cross-subsystem connections ─────────────────────────────
+APIFacade             --> IAggregationService
 AggregationManagement ..|> IAggregationService
-
-' AggregationManagement delegates to sub-controllers
-AggregationManagement --> PerformAggregations
-AggregationManagement --> ShowDataToDashboards
-
-' Sub-controllers depend on repository interface
-PerformAggregations ..> IAggregatedDataRepository
-ShowDataToDashboards ..> IAggregatedDataRepository
-
-' PerformAggregations reads raw validated data from external DB
-PerformAggregations --> ValidSensorDataDB
-
-' ShowDataToDashboards pushes results to Dashboard Agent
-ShowDataToDashboards --> DashboardAgent
-
-' AggregatedEnvironmentalDataDB implements repository interface
-AggregatedEnvironmentalDataDB ..|> IAggregatedDataRepository
-
-' AggregatedEnvironmentalDataDB owns AggregatedData records
-AggregatedEnvironmentalDataDB *-- AggregatedData
-
-' Classes that produce or consume AggregatedData as a type
-PerformAggregations ..> AggregatedData
-IAggregatedDataRepository ..> AggregatedData
-
-' AggregatedEnvironmentalDataDB supplies data to external consumers
+PerformAggregations   --> ValidSensorDataDB
+ShowDataToDashboards  --> DashboardAgent
 AggregatedEnvironmentalDataDB --> AlertsManagement
 AggregatedEnvironmentalDataDB --> APIManagement
+
+' ─── Internal relationships ──────────────────────────────────
+AggregationManagement         --> PerformAggregations
+AggregationManagement         --> ShowDataToDashboards
+PerformAggregations           ..> IAggregatedDataRepository
+ShowDataToDashboards          ..> IAggregatedDataRepository
+AggregatedEnvironmentalDataDB ..|> IAggregatedDataRepository
+AggregatedEnvironmentalDataDB *-- AggregatedData
+PerformAggregations           ..> AggregatedData
+IAggregatedDataRepository     ..> AggregatedData
 
 @enduml
