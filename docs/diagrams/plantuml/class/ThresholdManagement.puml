@@ -1,0 +1,121 @@
+@startuml ThresholdManagement_ClassDiagram
+title Threshold Management
+
+' ─── External stubs ──────────────────────────────────────────
+class ThresholdAdminAgent <<external>> {
+  +initiateThresholdOperation(req : Request)
+}
+
+class APIFacade <<external>> {
+  +dispatchRequest(req : Request)
+}
+
+interface IThresholdService <<external>> {
+  +receiveRequest(action : String)
+  +validateInput(data : Map) : Boolean
+  +processAction(action : String, data : Map)
+}
+
+class AlertsManagement <<external>> {
+}
+
+' ─── Own classes ─────────────────────────────────────────────
+class HighLevelUI {
+  -thresholdList : List
+  +displayThresholds()
+  +displayForm()
+  +displayConfirmation()
+  +displayError(msg : String)
+}
+
+class ThresholdManagement {
+  -action : String
+  -data : Map
+  +receiveRequest(action : String)
+  +validateInput(data : Map) : Boolean
+  +processAction(action : String, data : Map)
+}
+
+class CreateThreshold {
+  -metricType : String
+  -zone : String
+  -condition : String
+  -severityLevel : String
+  +inputThresholdData() : Map
+  +validateData(data : Map) : Boolean
+  +createThreshold(data : Map) : Threshold
+  +saveThreshold(t : Threshold)
+}
+
+class EditThreshold {
+  -id : int
+  -threshold : Threshold
+  -changes : Map
+  +loadThreshold(id : int) : Threshold
+  +editThreshold(t : Threshold, changes : Map)
+  +validateChanges(changes : Map) : Boolean
+  +saveThreshold(t : Threshold)
+}
+
+class DeleteThreshold {
+  -id : int
+  -threshold : Threshold
+  -confirmed : Boolean
+  +receiveDeleteRequest(id : int)
+  +retrieveThreshold(id : int) : Threshold
+  +deleteThreshold(t : Threshold)
+  +updateRepository(id : int)
+}
+
+interface IThresholdRepository {
+  +save(t : Threshold)
+  +update(t : Threshold)
+  +delete(id : int)
+  +findById(id : int) : Threshold
+  +findAll() : List
+  +findActive() : List
+}
+
+entity ThresholdDB {
+  -threshold : Threshold
+  +save(t : Threshold)
+  +update(t : Threshold)
+  +delete(id : int)
+  +findById(id : int) : Threshold
+  +findAll() : List
+  +findActive() : List
+  +getActiveThresholdRules() : List
+}
+
+entity Threshold {
+  -id : int
+  -metricType : String
+  -zone : String
+  -condition : String
+  -severityLevel : String
+  -isActive : Boolean
+  -createdAt : DateTime
+  -updatedAt : DateTime
+  +activate()
+  +deactivate()
+  +getDetails() : Map
+}
+
+' ─── Cross-subsystem connections ─────────────────────────────
+ThresholdAdminAgent   --> APIFacade
+APIFacade             --> IThresholdService
+ThresholdManagement   ..|> IThresholdService
+ThresholdDB           --> AlertsManagement
+
+' ─── Internal relationships ──────────────────────────────────
+HighLevelUI         --> ThresholdManagement
+ThresholdManagement --> CreateThreshold
+ThresholdManagement --> EditThreshold
+ThresholdManagement --> DeleteThreshold
+CreateThreshold     ..> IThresholdRepository
+EditThreshold       ..> IThresholdRepository
+DeleteThreshold     ..> IThresholdRepository
+ThresholdDB         ..|> IThresholdRepository
+ThresholdDB         *-- Threshold
+
+@enduml

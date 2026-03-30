@@ -1,0 +1,96 @@
+@startuml AggregationManagement_ClassDiagram
+title Aggregation Management
+
+' ─── External stubs ──────────────────────────────────────────
+class APIFacade <<external>> {
+  +dispatchRequest(req : Request)
+}
+
+interface IAggregationService <<external>> {
+  +performAggregations()
+  +showDataToDashboards(data : Map)
+}
+
+class DashboardAgent <<external>> {
+  +displayData(data : Map)
+  +refreshView()
+}
+
+entity ValidSensorDataDB <<external>> {
+  +getValidatedSensorData() : List
+}
+
+class AlertsManagement <<external>> {
+  +detectAnomalousTrends()
+}
+
+class APIManagement <<external>> {
+  +fetchAggregatedData(zoneId : String, metric : String) : List
+}
+
+' ─── Own classes ─────────────────────────────────────────────
+class AggregationManagement {
+  -data : Map
+  +performAggregations()
+  +showDataToDashboards(data : Map)
+}
+
+class PerformAggregations {
+  -zone : String
+  -interval : String
+  -metricType : String
+  +computeAggregatedMetrics(data : Map) : AggregatedData
+  +saveResult(d : AggregatedData)
+}
+
+class ShowDataToDashboards {
+  -zone : String
+  +fetchAggregatedData(zone : String) : List
+  +sendDataToDashboard(data : Map)
+}
+
+interface IAggregatedDataRepository {
+  +save(d : AggregatedData)
+  +findByZone(zone : String) : List
+  +findByInterval(interval : String) : List
+  +findLatest(zone : String) : AggregatedData
+}
+
+entity AggregatedEnvironmentalDataDB {
+  -aggregatedData : AggregatedData
+  +save(d : AggregatedData)
+  +findByZone(zone : String) : List
+  +findByInterval(interval : String) : List
+  +findLatest(zone : String) : AggregatedData
+  +getAggregatedEnvironmentalData(zoneId : String, metric : String) : List
+}
+
+entity AggregatedData {
+  -id : int
+  -zone : String
+  -metricType : String
+  -value : double
+  -interval : String
+  -timestamp : DateTime
+  +getSummary() : Map
+}
+
+' ─── Cross-subsystem connections ─────────────────────────────
+APIFacade             --> IAggregationService
+AggregationManagement ..|> IAggregationService
+PerformAggregations   --> ValidSensorDataDB
+ShowDataToDashboards  --> DashboardAgent
+AggregatedEnvironmentalDataDB --> AlertsManagement
+AggregatedEnvironmentalDataDB --> APIManagement
+
+' ─── Internal relationships ──────────────────────────────────
+AggregationManagement         --> PerformAggregations
+AggregationManagement         --> ShowDataToDashboards
+PerformAggregations           ..> IAggregatedDataRepository
+ShowDataToDashboards          ..> IAggregatedDataRepository
+AggregatedEnvironmentalDataDB ..|> IAggregatedDataRepository
+AggregatedEnvironmentalDataDB *-- AggregatedData
+PerformAggregations           ..> AggregatedData
+IAggregatedDataRepository     ..> AggregatedData
+
+@enduml

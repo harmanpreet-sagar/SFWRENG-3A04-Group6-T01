@@ -29,12 +29,15 @@ services:
       # Database configuration - Supabase PostgreSQL
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      # Optional: overrides default demo public API key seed (see backend app/shared/api_key_seed.py)
+      - DEMO_PUBLIC_API_KEY=${DEMO_PUBLIC_API_KEY:-}
       # Authentication secret for JWT token generation
       - JWT_SECRET=${JWT_SECRET}
       # SMS notification service credentials (Twilio)
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
+      - TWILIO_MESSAGING_SERVICE_SID=${TWILIO_MESSAGING_SERVICE_SID:-}
       - TWILIO_TO_NUMBER=${TWILIO_TO_NUMBER}
       # MQTT connection settings (defaults to mosquitto service)
       - MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-mosquitto}
