@@ -125,3 +125,60 @@ def get_alert_by_id(alert_id: int) -> Optional[AlertResponse]:
     if row is None:
         return None
     return AlertResponse.model_validate(dict(row))
+
+
+def try_acknowledge_active_alert(alert_id: int) -> Optional[AlertResponse]:
+    """
+    Transition active -> acknowledged. Returns updated row, or None if no matching row
+    (missing id or not active).
+    """
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                UPDATE public.alerts
+                SET
+                    status = %s,
+                    acknowledged_at = now(),
+                    updated_at = now()
+                WHERE id = %s AND status = %s
+                RETURNING {_ALERT_SELECT_LIST}
+                """,
+                (AlertStatus.acknowledged.value, alert_id, AlertStatus.active.value),
+            )
+            row = cur.fetchone()
+        conn.commit()
+    if row is None:
+        return None
+    return AlertResponse.model_validate(dict(row))
+
+
+def try_resolve_alert(alert_id: int) -> Optional[AlertResponse]:
+    """
+    Transition active or acknowledged -> resolved. Returns updated row, or None if
+    no matching row (missing id or already resolved).
+    """
+    with db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                UPDATE public.alerts
+                SET
+                    status = %s,
+                    resolved_at = now(),
+                    updated_at = now()
+                WHERE id = %s AND status IN (%s, %s)
+                RETURNING {_ALERT_SELECT_LIST}
+                """,
+                (
+                    AlertStatus.resolved.value,
+                    alert_id,
+                    AlertStatus.active.value,
+                    AlertStatus.acknowledged.value,
+                ),
+            )
+            row = cur.fetchone()
+        conn.commit()
+    if row is None:
+        return None
+    return AlertResponse.model_validate(dict(row))

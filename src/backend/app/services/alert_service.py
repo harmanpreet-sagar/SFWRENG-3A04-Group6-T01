@@ -27,6 +27,16 @@ class CreateAlertOutcome:
     skipped_duplicate_active: bool = False
 
 
+@dataclass(frozen=True)
+class AlertTransitionOutcome:
+    """Result of acknowledge / resolve lifecycle operations."""
+
+    alert: Optional[AlertResponse] = None
+    not_found: bool = False
+    invalid_transition: bool = False
+    current_status: Optional[str] = None
+
+
 class AlertService:
     @staticmethod
     def create_alert(payload: AlertCreate) -> CreateAlertOutcome:
@@ -78,3 +88,51 @@ class AlertService:
     @staticmethod
     def get_alert_by_id(alert_id: int) -> Optional[AlertResponse]:
         return alert_repository.get_alert_by_id(alert_id)
+
+    @staticmethod
+    def acknowledge_alert(alert_id: int) -> AlertTransitionOutcome:
+        """active -> acknowledged (strict)."""
+        updated = alert_repository.try_acknowledge_active_alert(alert_id)
+        if updated is not None:
+            log_audit_event(
+                "alert.acknowledged",
+                details={
+                    "alert_id": updated.id,
+                    "zone": updated.zone,
+                    "metric": updated.metric,
+                    "status": updated.status.value,
+                },
+            )
+            return AlertTransitionOutcome(alert=updated)
+
+        previous = alert_repository.get_alert_by_id(alert_id)
+        if previous is None:
+            return AlertTransitionOutcome(not_found=True)
+        return AlertTransitionOutcome(
+            invalid_transition=True,
+            current_status=previous.status.value,
+        )
+
+    @staticmethod
+    def resolve_alert(alert_id: int) -> AlertTransitionOutcome:
+        """active | acknowledged -> resolved."""
+        updated = alert_repository.try_resolve_alert(alert_id)
+        if updated is not None:
+            log_audit_event(
+                "alert.resolved",
+                details={
+                    "alert_id": updated.id,
+                    "zone": updated.zone,
+                    "metric": updated.metric,
+                    "status": updated.status.value,
+                },
+            )
+            return AlertTransitionOutcome(alert=updated)
+
+        previous = alert_repository.get_alert_by_id(alert_id)
+        if previous is None:
+            return AlertTransitionOutcome(not_found=True)
+        return AlertTransitionOutcome(
+            invalid_transition=True,
+            current_status=previous.status.value,
+        )

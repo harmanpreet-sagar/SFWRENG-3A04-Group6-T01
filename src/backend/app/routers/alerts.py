@@ -1,4 +1,4 @@
-"""Read-only alert endpoints for operations dashboards and history."""
+"""Alert endpoints: read list/detail and lifecycle (acknowledge / resolve)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from app.models.alert import AlertListResponse, AlertResponse, AlertSeverity, Al
 from app.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
+
+_NOT_FOUND_DETAIL = "No alert with this id"
 
 
 @router.get("", response_model=AlertListResponse)
@@ -26,6 +28,60 @@ def get_alerts(
 ) -> AlertListResponse:
     rows = AlertService.list_alerts(status=status, zone=zone, severity=severity)
     return AlertListResponse(alerts=rows, total=len(rows))
+
+
+@router.patch("/{alert_id}/acknowledge", response_model=AlertResponse)
+def acknowledge_alert(alert_id: int) -> AlertResponse:
+    outcome = AlertService.acknowledge_alert(alert_id)
+    if outcome.alert is not None:
+        return outcome.alert
+    if outcome.not_found:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "alert_not_found",
+                "message": _NOT_FOUND_DETAIL,
+                "alert_id": alert_id,
+            },
+        )
+    raise HTTPException(
+        status_code=409,
+        detail={
+            "error": "invalid_state_transition",
+            "message": "Only alerts with status 'active' can be acknowledged.",
+            "alert_id": alert_id,
+            "current_status": outcome.current_status,
+            "allowed_from": ["active"],
+        },
+    )
+
+
+@router.patch("/{alert_id}/resolve", response_model=AlertResponse)
+def resolve_alert(alert_id: int) -> AlertResponse:
+    outcome = AlertService.resolve_alert(alert_id)
+    if outcome.alert is not None:
+        return outcome.alert
+    if outcome.not_found:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "alert_not_found",
+                "message": _NOT_FOUND_DETAIL,
+                "alert_id": alert_id,
+            },
+        )
+    raise HTTPException(
+        status_code=409,
+        detail={
+            "error": "invalid_state_transition",
+            "message": (
+                "Only alerts with status 'active' or 'acknowledged' can be resolved."
+            ),
+            "alert_id": alert_id,
+            "current_status": outcome.current_status,
+            "allowed_from": ["active", "acknowledged"],
+        },
+    )
 
 
 @router.get(
@@ -55,7 +111,7 @@ def get_alert(alert_id: int) -> AlertResponse:
             status_code=404,
             detail={
                 "error": "alert_not_found",
-                "message": "No alert with this id",
+                "message": _NOT_FOUND_DETAIL,
                 "alert_id": alert_id,
             },
         )
