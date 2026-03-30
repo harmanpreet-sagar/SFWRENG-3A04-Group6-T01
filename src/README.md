@@ -112,6 +112,7 @@ Copy `.env.example` to `.env` and configure:
 
 - **SUPABASE_URL**: Your Supabase project URL
 - **SUPABASE_DB_URL**: Direct database connection string
+- **DEMO_PUBLIC_API_KEY** (optional): Plaintext demo key seeded into `api_keys` at startup (hashed in DB). If unset, a fixed dev default from `backend/app/shared/api_key_seed.py` is used. Apply `backend/db/migrations/002_create_api_keys.sql` before expecting the seed to succeed.
 - **JWT_SECRET**: Secret key for JWT token signing
 - **TWILIO_ACCOUNT_SID**: Twilio account identifier
 - **TWILIO_AUTH_TOKEN**: Twilio authentication token

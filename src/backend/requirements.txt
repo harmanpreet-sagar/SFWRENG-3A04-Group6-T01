@@ -7,6 +7,7 @@ python-dotenv==1.0.1                  # Load environment variables from .env fil
 
 # Database Client
 supabase==2.9.0                       # Python client for Supabase (PostgreSQL)
+psycopg[binary]==3.2.3                # Direct Postgres driver for startup SQL (seeds)
 
 # MQTT Client
 paho-mqtt==2.1.0                      # MQTT protocol client for telemetry data streaming
