@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.shared.public_api_audit_middleware import PublicApiAuditMiddleware
 from app.routers import alerts as alerts_router
 from app.routers import public_demo as public_demo_router
 from app.routers import public_zones as public_zones_router
@@ -57,6 +58,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(PublicApiAuditMiddleware)
 
 app.include_router(alerts_router.router)
 app.include_router(public_demo_router.router)

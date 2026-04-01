@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Annotated, Optional
 
 from fastapi import Depends, Header, HTTPException
+from starlette.requests import Request
 
 from app.models.public_api_key import PublicApiKeyAuth
 from app.services.api_key_repository import fetch_active_api_key_by_hash
@@ -57,6 +58,7 @@ def _extract_bearer_token(authorization: Optional[str]) -> str:
 
 
 def require_public_api_key(
+    request: Request,
     authorization: Annotated[Optional[str], Header(alias="Authorization")] = None,
 ) -> PublicApiKeyAuth:
     plaintext = _extract_bearer_token(authorization)
@@ -70,7 +72,10 @@ def require_public_api_key(
                 message="The API key is invalid or inactive.",
             ),
         )
-    return PublicApiKeyAuth(id=row["id"], label=row["label"])
+    auth = PublicApiKeyAuth(id=row["id"], label=row["label"])
+    request.state.public_api_key_id = auth.id
+    request.state.public_api_key_label = auth.label
+    return auth
 
 
 PublicApiKeyDep = Annotated[PublicApiKeyAuth, Depends(require_public_api_key)]
