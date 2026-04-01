@@ -16,6 +16,7 @@ from fastapi import Depends, Header, HTTPException
 from app.models.public_api_key import PublicApiKeyAuth
 from app.services.api_key_repository import fetch_active_api_key_by_hash
 from app.shared.api_key_hash import api_key_sha256_hex
+from app.shared.public_api_errors import public_api_error_payload
 from app.shared.public_api_rate_limiter import public_api_rate_limiter
 
 
@@ -23,34 +24,34 @@ def _extract_bearer_token(authorization: Optional[str]) -> str:
     if authorization is None or not authorization.strip():
         raise HTTPException(
             status_code=401,
-            detail={
-                "error": "api_key_missing",
-                "message": "Missing Authorization header with a valid API key.",
-            },
+            detail=public_api_error_payload(
+                error="api_key_missing",
+                message="Missing Authorization header with a valid API key.",
+            ),
         )
     parts = authorization.strip().split(None, 1)
     if len(parts) != 2 or parts[0].lower() != "bearer":
         raise HTTPException(
             status_code=401,
-            detail={
-                "error": "api_key_invalid",
-                "message": (
+            detail=public_api_error_payload(
+                error="api_key_invalid",
+                message=(
                     "Authorization must use the Bearer scheme: "
                     "'Authorization: Bearer <api_key>'."
                 ),
-            },
+            ),
         )
     token = parts[1].strip()
     if not token:
         raise HTTPException(
             status_code=401,
-            detail={
-                "error": "api_key_invalid",
-                "message": (
+            detail=public_api_error_payload(
+                error="api_key_invalid",
+                message=(
                     "Authorization must use the Bearer scheme: "
                     "'Authorization: Bearer <api_key>'."
                 ),
-            },
+            ),
         )
     return token
 
@@ -64,10 +65,10 @@ def require_public_api_key(
     if row is None:
         raise HTTPException(
             status_code=401,
-            detail={
-                "error": "api_key_invalid",
-                "message": "The API key is invalid or inactive.",
-            },
+            detail=public_api_error_payload(
+                error="api_key_invalid",
+                message="The API key is invalid or inactive.",
+            ),
         )
     return PublicApiKeyAuth(id=row["id"], label=row["label"])
 
@@ -87,14 +88,14 @@ def enforce_public_api_rate_limit(
     if denied is not None:
         raise HTTPException(
             status_code=429,
-            detail={
-                "error": "rate_limit_exceeded",
-                "message": "Too many requests for this API key. Try again later.",
-                "key_id": api_key.id,
-                "limit": denied.limit,
-                "window_seconds": denied.window_seconds,
-                "retry_after_seconds": denied.retry_after_seconds,
-            },
+            detail=public_api_error_payload(
+                error="rate_limit_exceeded",
+                message="Too many requests for this API key. Try again later.",
+                key_id=api_key.id,
+                limit=denied.limit,
+                window_seconds=denied.window_seconds,
+                retry_after_seconds=denied.retry_after_seconds,
+            ),
             headers={"Retry-After": str(denied.retry_after_seconds)},
         )
     return api_key

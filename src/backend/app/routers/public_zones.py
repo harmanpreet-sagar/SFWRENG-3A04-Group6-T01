@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Path
 from app.models.public_zone import PublicZoneSummary, PublicZonesListResponse
 from app.services.public_zones_service import get_public_zone, list_public_zones
 from app.shared.deps_public_api import PublicApiKeyRateLimitedDep
+from app.shared.public_api_errors import public_api_error_payload
 
 router = APIRouter(prefix="/public", tags=["Public API"])
 
@@ -48,19 +49,21 @@ def get_public_zone_by_id(
     if not z:
         raise HTTPException(
             status_code=422,
-            detail={
-                "error": "invalid_zone",
-                "message": "Zone path must be a non-empty identifier after trimming whitespace.",
-            },
+            detail=public_api_error_payload(
+                error="invalid_zone",
+                message=(
+                    "Zone path must be a non-empty identifier after trimming whitespace."
+                ),
+            ),
         )
     summary = get_public_zone(z)
     if summary is None:
         raise HTTPException(
             status_code=404,
-            detail={
-                "error": "zone_not_found",
-                "message": "No aggregated data exists for this zone.",
-                "zone": z,
-            },
+            detail=public_api_error_payload(
+                error="zone_not_found",
+                message="No aggregated data exists for this zone.",
+                zone=z,
+            ),
         )
     return summary
