@@ -51,3 +51,40 @@ def list_public_zones() -> PublicZonesListResponse:
         )
 
     return PublicZonesListResponse(zones=summaries, total=len(summaries))
+
+
+def get_public_zone(zone: str) -> PublicZoneSummary | None:
+    """
+    One zone’s public summary, or None if there is no aggregated_data for that zone.
+    """
+    rows = aggregated_data_repository.fetch_latest_row_per_metric_for_zone(zone)
+    if not rows:
+        return None
+
+    metrics = sorted(
+        (
+            PublicZoneMetricReading(
+                metric=str(r["metric"]),
+                value=float(r["value"]),
+                window_end=r["window_end"],
+            )
+            for r in rows
+        ),
+        key=lambda m: m.metric,
+    )
+    updated_at = max(m.window_end for m in metrics)
+    sev_str = alert_repository.fetch_worst_active_severity_for_zone(zone)
+    if sev_str is not None:
+        status = PublicZoneOperationalStatus.alerting
+        highest = AlertSeverity(sev_str)
+    else:
+        status = PublicZoneOperationalStatus.normal
+        highest = None
+
+    return PublicZoneSummary(
+        zone=str(rows[0]["zone"]),
+        metrics=metrics,
+        updated_at=updated_at,
+        status=status,
+        active_alert_highest_severity=highest,
+    )

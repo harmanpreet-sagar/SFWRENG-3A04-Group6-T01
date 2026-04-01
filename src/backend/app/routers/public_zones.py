@@ -1,18 +1,27 @@
 """
 Read-only public zone summaries (Deliverable 4).
 
-Requires API key + in-memory rate limit. No per-zone route here.
+Requires API key + in-memory rate limit.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Annotated
 
-from app.models.public_zone import PublicZonesListResponse
-from app.services.public_zones_service import list_public_zones
+from fastapi import APIRouter, HTTPException, Path
+
+from app.models.public_zone import PublicZoneSummary, PublicZonesListResponse
+from app.services.public_zones_service import get_public_zone, list_public_zones
 from app.shared.deps_public_api import PublicApiKeyRateLimitedDep
 
 router = APIRouter(prefix="/public", tags=["Public API"])
+
+_ZONE_PATH = Path(
+    ...,
+    min_length=1,
+    max_length=256,
+    description="Zone identifier (must match values stored in aggregated_data)",
+)
 
 
 @router.get(
@@ -24,3 +33,34 @@ def get_public_zones(
     _api_key: PublicApiKeyRateLimitedDep,
 ) -> PublicZonesListResponse:
     return list_public_zones()
+
+
+@router.get(
+    "/zones/{zone}",
+    response_model=PublicZoneSummary,
+    summary="Get aggregated environmental summary for one zone",
+)
+def get_public_zone_by_id(
+    _api_key: PublicApiKeyRateLimitedDep,
+    zone: Annotated[str, _ZONE_PATH],
+) -> PublicZoneSummary:
+    z = zone.strip()
+    if not z:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_zone",
+                "message": "Zone path must be a non-empty identifier after trimming whitespace.",
+            },
+        )
+    summary = get_public_zone(z)
+    if summary is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "zone_not_found",
+                "message": "No aggregated data exists for this zone.",
+                "zone": z,
+            },
+        )
+    return summary
