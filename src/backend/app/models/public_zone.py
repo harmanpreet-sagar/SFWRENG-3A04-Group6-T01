@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.models.alert import AlertSeverity
+from app.shared.enums import AlertSeverity
 
 
 class PublicZoneOperationalStatus(str, Enum):

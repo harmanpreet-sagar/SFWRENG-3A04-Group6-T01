@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from app.models.alert import AlertSeverity
+from app.shared.enums import AlertSeverity
 from app.models.public_zone import (
     PublicZoneMetricReading,
     PublicZoneOperationalStatus,
