@@ -14,6 +14,7 @@ RBAC:
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from app.shared.auth import CurrentUser, require_admin, require_operator_or_admin
 from app.shared.threshold import ThresholdCreate, ThresholdResponse, ThresholdUpdate
@@ -101,13 +102,14 @@ def deactivate_threshold(
     return updated
 
 
-@router.delete("/{threshold_id}", status_code=204)
+@router.delete("/{threshold_id}", status_code=204, response_class=Response)
 def delete_threshold(
     threshold_id: int,
     current_user: CurrentUser = Depends(require_admin),
-) -> None:
+) -> Response:
     deleted = ThresholdService.delete_threshold(
         threshold_id, actor_email=current_user.email
     )
     if not deleted:
         raise _not_found(threshold_id)
+    return Response(status_code=204)
