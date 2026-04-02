@@ -17,6 +17,7 @@ from starlette.requests import Request
 from app.models.public_api_key import PublicApiKeyAuth
 from app.services.api_key_repository import fetch_active_api_key_by_hash
 from app.shared.api_key_hash import api_key_sha256_hex
+from app.shared.db import get_supabase_db_url
 from app.shared.public_api_errors import public_api_error_payload
 from app.shared.public_api_rate_limiter import public_api_rate_limiter
 
@@ -61,6 +62,14 @@ def require_public_api_key(
     request: Request,
     authorization: Annotated[Optional[str], Header(alias="Authorization")] = None,
 ) -> PublicApiKeyAuth:
+    if not get_supabase_db_url():
+        raise HTTPException(
+            status_code=503,
+            detail=public_api_error_payload(
+                error="service_unavailable",
+                message="Database is not configured (SUPABASE_DB_URL).",
+            ),
+        )
     plaintext = _extract_bearer_token(authorization)
     digest = api_key_sha256_hex(plaintext)
     row = fetch_active_api_key_by_hash(digest)
