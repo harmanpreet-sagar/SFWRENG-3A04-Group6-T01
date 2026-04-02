@@ -1,4 +1,4 @@
-"""Pydantic models for the Account Management subsystem (Jason)."""
+"""Pydantic models for the Account Management subsystem"""
 
 from __future__ import annotations
 
@@ -10,17 +10,28 @@ from pydantic import BaseModel, EmailStr, Field
 from app.shared.enums import UserRole
 
 
-class AccountBase(BaseModel):
-    name: str = Field(..., min_length=1)
+class AccountResponse(BaseModel):
+    aid: int
+    name: str
+    email: str
+    clearance: str # 'admin' | 'operator'
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+ 
+    model_config = {"from_attributes": True}
+
+class AccountListResponse(BaseModel):
+    accounts: List[AccountResponse]
+    total: int
+
+
+class AccountCreate(BaseModel):
+    """Used by POST, same structure as createAccount in Logins class."""
+    name: str = Field(..., min_length=1, max_length=128)
     email: EmailStr
-    role: UserRole
-    age: Optional[int] = None
-    address: Optional[str] = None
-    is_active: bool = True
-
-
-class AccountCreate(AccountBase):
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=6, max_length=128)
+    clearance: str = Field(..., pattern="^(admin|operator)$")
 
 
 class AccountUpdate(BaseModel):
@@ -54,3 +65,25 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     account: AccountResponse
+
+class CredentialsUpdate(BaseModel):
+    """Mirrors ChangeUserPass controller: confirmChanges(), writeToD B()."""
+    new_password: str = Field(..., min_length=6, max_length=128)
+
+    
+class AuditLogEntry(BaseModel):
+    id: int
+    event_type: str
+    actor_id: Optional[int]
+    actor_email: Optional[str]
+    target_id: Optional[int]
+    target_email: Optional[str]
+    detail: Optional[str]
+    created_at: datetime
+ 
+    model_config = {"from_attributes": True}
+ 
+ 
+class AuditLogListResponse(BaseModel):
+    entries: List[AuditLogEntry]
+    total: int
