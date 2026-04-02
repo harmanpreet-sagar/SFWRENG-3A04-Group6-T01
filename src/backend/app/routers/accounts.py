@@ -13,8 +13,8 @@ from app.shared.account import (
     AccountCreate, AccountListResponse, AccountResponse,
     AuditLogListResponse, CredentialsUpdate, LoginRequest, LoginResponse,
 )
-from app.shared.dependencies import get_current_account, require_admin
-from app.services.account_service import AccountService
+from app.shared.account_dependencies import get_current_account, require_admin
+from app.services.accounts_service import AccountService
  
 router = APIRouter(prefix="/account", tags=["Account Management"])
  
