@@ -1,4 +1,8 @@
-"""Alert endpoints: read list/detail and lifecycle (acknowledge / resolve)."""
+"""Alert endpoints: read list/detail and lifecycle (acknowledge / resolve).
+
+Simple explanation: The website doors for alerts—list them, filter them, watch a live
+stream of changes, and buttons to say “I saw it” or “it is fixed.”
+"""
 
 from __future__ import annotations
 

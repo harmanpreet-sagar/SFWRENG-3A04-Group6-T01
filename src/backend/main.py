@@ -1,6 +1,10 @@
 """
 Main FastAPI application entry point for the Threshold Management System.
 This module initializes the API Facade layer that routes requests to subsystem services.
+
+Simple explanation (alerts): This file also plugs in the alerts web routes and starts
+background jobs (including the timer that can create alerts when rules break, and MQTT
+that feeds data upstream of those rules).
 """
 
 import asyncio
