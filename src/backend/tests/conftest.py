@@ -46,18 +46,23 @@ async def _noop_worker() -> None:
     await asyncio.sleep(9999)
 
 
-@pytest.fixture(scope="session")
-def app():
-    # scope="session" — one FastAPI app instance is shared across the entire
-    # test session, which avoids the overhead of re-importing and re-wiring
-    # startup hooks for every test class.
-    #
-    # All startup side-effects are patched so no real I/O occurs:
-    #   seed_demo_public_api_key   — would hit the DB
-    #   seed_default_thresholds    — would hit the DB (harman branch)
-    #   seed_demo_accounts         — would hit the DB (jason branch)
-    #   threshold_evaluator_worker — long-running polling loop
-    #   run_mqtt_subscriber        — opens a TLS connection to Mosquitto (ali branch)
+@pytest.fixture(scope="session", autouse=True)
+def _patch_startup_functions():
+    """Hold all startup-side-effect patches open for the entire test session.
+
+    The patches must outlive the `app` fixture because FastAPI's lifespan
+    (where seeds and workers are actually called) only runs when TestClient
+    enters its context manager — which happens in the `client` fixture, after
+    `app` has already returned.  A plain `with patch(...)` inside `app` would
+    exit before the lifespan ever fires.
+
+    Patched side-effects:
+      seed_demo_public_api_key   — would hit the DB
+      seed_default_thresholds    — would hit the DB (harman branch)
+      seed_demo_accounts         — would hit the DB (jason branch)
+      threshold_evaluator_worker — long-running polling loop
+      run_mqtt_subscriber        — opens a TLS connection to Mosquitto (ali branch)
+    """
     with (
         patch("app.shared.api_key_seed.seed_demo_public_api_key"),
         patch("app.shared.threshold_seed.seed_default_thresholds"),
@@ -71,9 +76,17 @@ def app():
             _noop_worker,
         ),
     ):
-        from main import app as fastapi_app  # noqa: PLC0415
+        yield  # patches stay active until the very end of the test session
 
-        return fastapi_app
+
+@pytest.fixture(scope="session")
+def app(_patch_startup_functions):
+    # scope="session" — one FastAPI app instance is shared across the entire
+    # test session, which avoids the overhead of re-importing and re-wiring
+    # startup hooks for every test class.
+    from main import app as fastapi_app  # noqa: PLC0415
+
+    return fastapi_app
 
 
 @pytest.fixture(scope="session")
