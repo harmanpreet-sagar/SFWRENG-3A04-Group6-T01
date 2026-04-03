@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import alerts as alerts_router
+from app.routers import accounts as accounts_router
 
 # Load environment variables: prefer src/.env when running from src/backend (local dev)
 _backend_dir = Path(__file__).resolve().parent
@@ -27,8 +28,10 @@ async def lifespan(app: FastAPI):
     """Run one-time startup tasks (e.g. idempotent DB seeds) and background jobs."""
     from app.shared.api_key_seed import seed_demo_public_api_key
     from app.tasks.threshold_evaluator_worker import threshold_evaluator_worker
+    from app.shared.seed_accounts import seed_demo_accounts
 
     seed_demo_public_api_key()
+    seed_demo_accounts()
     evaluator_task = asyncio.create_task(threshold_evaluator_worker())
     try:
         yield
@@ -57,6 +60,7 @@ app.add_middleware(
 )
 
 app.include_router(alerts_router.router)
+app.include_router(accounts_router.router)
 
 
 @app.get("/")

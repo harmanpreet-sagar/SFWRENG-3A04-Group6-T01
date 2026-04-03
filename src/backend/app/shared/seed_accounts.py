@@ -5,7 +5,7 @@ Called from main.py lifespan with other seeds
 from __future__ import annotations
  
 import bcrypt
-from app.shared.database import get_db_connection
+from app.shared.db import db_connection
  
  
 DEMO_ACCOUNTS = [
@@ -26,7 +26,7 @@ DEMO_ACCOUNTS = [
  
 def seed_demo_accounts() -> None:
     """Insert demo accounts if they do not already exist."""
-    with get_db_connection() as conn:
+    with db_connection() as conn:
         cursor = conn.cursor()
         for account in DEMO_ACCOUNTS:
             cursor.execute(
