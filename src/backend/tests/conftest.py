@@ -36,10 +36,8 @@ def app():
     # startup hooks for every test class.
     with (
         patch("app.shared.api_key_seed.seed_demo_public_api_key"),
-        patch(
-            "app.tasks.threshold_evaluator_worker.threshold_evaluator_worker",
-            _noop_worker,
-        ),
+        patch("app.tasks.threshold_evaluator_worker.threshold_evaluator_worker", _noop_worker),
+        patch("app.shared.seed_accounts.seed_demo_accounts"),
     ):
         from main import app as fastapi_app  # noqa: PLC0415
 
