@@ -35,22 +35,34 @@ import {
   listThresholds, createThreshold, updateThreshold,
   activateThreshold, deactivateThreshold, deleteThreshold,
 } from '../api/thresholds';
+import { listAlerts } from '../api/alerts';
+import { API_BASE } from '../api/client';
+import { openAlertSseStream } from '../lib/sseAlerts';
 import { useAuth } from '../context/AuthContext';
-import type { Threshold, ThresholdCreate } from '../types';
+import type { Alert, SseAlertEvent, Threshold, ThresholdCreate } from '../types';
 import ThresholdTable from '../components/ThresholdTable';
 import ThresholdFormModal from '../components/ThresholdFormModal';
 import SeverityChart from '../components/SeverityChart';
 import ZoneMap from '../components/ZoneMap';
+import ViolationAlertModal from '../components/ViolationAlertModal';
+import AlertsBrowserModal from '../components/AlertsBrowserModal';
 
 type Filter = { zone: string; metric: string; status: 'all' | 'active' | 'inactive' };
 
 export default function ThresholdsPage() {
-  const { account, isAdmin, signOut } = useAuth();
+  const { account, token, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [thresholds, setThresholds] = useState<Threshold[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [showAlertsBrowser, setShowAlertsBrowser] = useState(false);
+  const [browserInitialShowAll, setBrowserInitialShowAll] = useState(false);
+  const [violationQueue, setViolationQueue] = useState<SseAlertEvent[]>([]);
 
   // filter drives both the zone map selection highlight and the table rows shown.
   const [filter, setFilter] = useState<Filter>({ zone: '', metric: '', status: 'all' });
@@ -87,6 +99,65 @@ export default function ThresholdsPage() {
   }, [signOut, navigate]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  const loadAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    setAlertsError(null);
+    try {
+      const { alerts: rows } = await listAlerts();
+      setAlerts(rows);
+    } catch (err: unknown) {
+      if ((err as { response?: { status?: number } })?.response?.status === 401) {
+        signOut();
+        navigate('/login', { replace: true });
+        return;
+      }
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setAlertsError(typeof detail === 'string' ? detail : 'Failed to load alerts.');
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, [signOut, navigate]);
+
+  useEffect(() => {
+    void loadAlerts();
+  }, [loadAlerts]);
+
+  const handleSseAlert = useCallback(
+    (evt: SseAlertEvent) => {
+      if (evt.event_type === 'alert.created') {
+        setViolationQueue(q => (q.some(x => x.id === evt.id) ? q : [...q, evt]));
+      }
+      void loadAlerts();
+    },
+    [loadAlerts],
+  );
+
+  useEffect(() => {
+    if (!token) return;
+    const ac = new AbortController();
+    let cancelled = false;
+
+    async function streamLoop() {
+      while (!cancelled && !ac.signal.aborted) {
+        try {
+          await openAlertSseStream(API_BASE, token, handleSseAlert, ac.signal);
+        } catch {
+          /* network drop or abort */
+        }
+        if (cancelled || ac.signal.aborted) break;
+        await new Promise(r => setTimeout(r, 4000));
+      }
+    }
+    void streamLoop();
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [token, handleSseAlert]);
+
+  const activeAlertCount = alerts.filter(a => a.status === 'active').length;
+  const currentViolation = violationQueue[0] ?? null;
 
   // ── CRUD handlers ────────────────────────────────────────────────────────────
   // Handlers receive the minimal payload from the form/table and delegate
@@ -185,6 +256,29 @@ export default function ThresholdsPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setBrowserInitialShowAll(false);
+                setShowAlertsBrowser(true);
+                void loadAlerts();
+              }}
+              className="relative inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              <svg className="w-4 h-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+                />
+              </svg>
+              Alerts
+              {activeAlertCount > 0 && (
+                <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-md bg-red-500 px-1 text-[11px] font-bold tabular-nums text-white shadow-sm">
+                  {activeAlertCount > 99 ? '99+' : activeAlertCount}
+                </span>
+              )}
+            </button>
             <span className="hidden md:block text-sm text-slate-300 truncate max-w-[200px]">
               {account?.name}
               <span
@@ -339,9 +433,12 @@ export default function ThresholdsPage() {
               {/* Manual refresh — useful when the evaluator has just fired */}
               <button
                 type="button"
-                onClick={() => void reload()}
+                onClick={() => {
+                  void reload();
+                  void loadAlerts();
+                }}
                 className="btn-ghost p-2 rounded-lg border border-transparent hover:border-slate-200"
-                title="Refresh"
+                title="Refresh thresholds and alerts"
               >
                 <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round"
@@ -401,6 +498,30 @@ export default function ThresholdsPage() {
           onClose={closeForm}
         />
       )}
+
+      {currentViolation && (
+        <ViolationAlertModal
+          event={currentViolation}
+          onDismiss={() => setViolationQueue(q => q.slice(1))}
+          onResolved={() => void loadAlerts()}
+          onViewAllAlerts={() => {
+            setViolationQueue(q => q.slice(1));
+            setBrowserInitialShowAll(true);
+            setShowAlertsBrowser(true);
+            void loadAlerts();
+          }}
+        />
+      )}
+
+      <AlertsBrowserModal
+        isOpen={showAlertsBrowser}
+        onClose={() => setShowAlertsBrowser(false)}
+        alerts={alerts}
+        loading={alertsLoading}
+        error={alertsError}
+        initialShowAll={browserInitialShowAll}
+        onRefresh={() => void loadAlerts()}
+      />
     </div>
   );
 }
