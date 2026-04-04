@@ -1,3 +1,16 @@
+"""
+Validation Router — REST API Endpoints
+
+Exposes two endpoints for monitoring the health of the data ingestion pipeline:
+- GET /validation/status: returns counts of valid, failed, and anomalous
+  readings processed in the last hour. Used by the operational dashboard
+  as a pipeline health indicator.
+- GET /validation/events: returns the 50 most recent validation events
+  with their status and reason. Accessible to OPERATOR and ADMIN roles.
+"""
+
+
+
 from fastapi import APIRouter
 from datetime import datetime, timezone, timedelta
 import asyncpg

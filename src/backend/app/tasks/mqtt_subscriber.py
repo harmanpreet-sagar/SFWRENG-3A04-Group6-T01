@@ -1,3 +1,19 @@
+"""
+MQTT Subscriber — FastAPI Background Task
+
+Connects to the Mosquitto MQTT broker over TLS on startup and subscribes
+to the wildcard topic scemas/sensors/#. For every incoming message, parses
+the JSON payload and passes it to the validation pipeline in validation_service.py.
+Runs continuously as a background asyncio task alongside the FastAPI HTTP server.
+
+This file imports the function "process_message" from validation_service.py (which calls the functions
+that contain all the validation logic)
+
+Print statements have also been included for debugging purposes to ensure the MQTT subscriber has 
+been successfully connected. 
+"""
+
+
 import asyncio
 import json
 import os
