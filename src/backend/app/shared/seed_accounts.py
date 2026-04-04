@@ -25,24 +25,26 @@ DEMO_ACCOUNTS = [
  
  
 def seed_demo_accounts() -> None:
-    """Insert demo accounts if they do not already exist."""
+    """
+    Upsert demo accounts on every startup.
+
+    ON CONFLICT DO UPDATE ensures the password is always reset to the value
+    defined above, so a stale hash from a previous run never locks out the demo.
+    """
     with db_connection() as conn:
         cursor = conn.cursor()
         for account in DEMO_ACCOUNTS:
-            cursor.execute(
-                "SELECT aid FROM accounts WHERE email = %s", (account["email"],)
-            )
-            if cursor.fetchone() is not None:
-                continue  # already seeded
- 
             password_hash = bcrypt.hashpw(
                 account["password"].encode(), bcrypt.gensalt()
             ).decode()
- 
             cursor.execute(
                 """
                 INSERT INTO accounts (name, email, password, clearance)
                 VALUES (%s, %s, %s, %s)
+                ON CONFLICT (email) DO UPDATE
+                    SET password  = EXCLUDED.password,
+                        clearance = EXCLUDED.clearance,
+                        is_active = TRUE
                 """,
                 (account["name"], account["email"], password_hash, account["clearance"]),
             )

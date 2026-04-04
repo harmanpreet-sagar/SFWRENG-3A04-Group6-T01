@@ -49,12 +49,12 @@ class LoginRequest(BaseModel):
  
  
 class LoginResponse(BaseModel):
-    """
-    POC login response, verified by stub
-    """
+    """Login response — includes a signed JWT for protected endpoints."""
     message: str
     identity_verified: bool
     account: AccountResponse
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
 
 class CredentialsUpdate(BaseModel):
     new_password: str = Field(..., min_length=1, max_length=128)

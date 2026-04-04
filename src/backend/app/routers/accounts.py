@@ -4,6 +4,7 @@ Account Management router. token verification handled by stub
  
 from __future__ import annotations
  
+import logging
 from datetime import datetime
 from typing import Optional
  
@@ -15,6 +16,10 @@ from app.shared.account import (
 )
 from app.shared.account_dependencies import get_current_account, require_admin
 from app.services.accounts_service import AccountService
+from app.shared.enums import UserRole
+from app.shared.auth import create_access_token
+
+logger = logging.getLogger(__name__)
  
 router = APIRouter(prefix="/account", tags=["Account Management"])
  
@@ -23,16 +28,37 @@ _NOT_FOUND = "No account with this aid"
  
 @router.post("/login", response_model=LoginResponse)
 def login(body: LoginRequest) -> LoginResponse:
-    """
-    stub; returns identity verified
-    """
+    """Authenticate with email + password; returns account info and a signed JWT."""
     result = AccountService.login(body.email, body.password)
     if result is None:
         raise HTTPException(
             status_code=401,
-            detail="[POC] Login failed — email or password incorrect, or account inactive.",
+            detail="Login failed — email or password incorrect, or account inactive.",
         )
-    return LoginResponse(message="Identity verified", identity_verified=True, account=result["account"])
+    account = result["account"]
+
+    # Map clearance ("admin"/"operator") → UserRole ("ADMIN"/"OPERATOR")
+    try:
+        user_role = UserRole(account.clearance.upper())
+    except ValueError:
+        user_role = UserRole.operator
+
+    token: Optional[str] = None
+    try:
+        token = create_access_token(
+            account_id=account.aid,
+            email=account.email,
+            role=user_role,
+        )
+    except RuntimeError:
+        logger.warning("JWT_SECRET not set — login response will not include access_token")
+
+    return LoginResponse(
+        message="Identity verified",
+        identity_verified=True,
+        account=account,
+        access_token=token,
+    )
  
  
 @router.post("/register", response_model=AccountResponse, status_code=201)

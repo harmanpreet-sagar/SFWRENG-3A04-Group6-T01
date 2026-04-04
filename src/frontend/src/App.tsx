@@ -1,22 +1,28 @@
-/**
- * Root Application Component
- * Main entry point for the Threshold Management System frontend
- * 
- * This component will eventually include:
- * - Routing for different pages (Dashboard, Threshold Admin, Alerts)
- * - Authentication context and protected routes
- * - MQTT connection for real-time telemetry updates
- */
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+import LoginPage from './pages/LoginPage';
+import ThresholdsPage from './pages/ThresholdsPage';
 
-import { useState } from 'react'
-
-function App() {
-  return (
-    <div className="App">
-      <h1>Threshold Management System</h1>
-      <p>Group 6 - Tutorial 01</p>
-    </div>
-  )
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { account } = useAuth();
+  if (!account) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
-export default App
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/thresholds"
+        element={
+          <RequireAuth>
+            <ThresholdsPage />
+          </RequireAuth>
+        }
+      />
+      {/* Default redirect */}
+      <Route path="*" element={<Navigate to="/thresholds" replace />} />
+    </Routes>
+  );
+}

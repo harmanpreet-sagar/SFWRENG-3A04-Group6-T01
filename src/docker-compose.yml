@@ -68,8 +68,7 @@ services:
       - VITE_MQTT_BROKER_HOST=${MQTT_BROKER_HOST:-mosquitto}
       - VITE_MQTT_BROKER_PORT=${MQTT_BROKER_PORT:-8883}
     volumes:
-      - ./frontend:/app           # Mount source for hot-reload
-      - /app/node_modules         # Persist node_modules in container
+      - ./frontend/src:/app/src   # Hot-reload source only; node_modules stays in image
     depends_on:
       - backend  # Ensure backend API is available
     restart: unless-stopped
