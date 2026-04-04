@@ -2,6 +2,9 @@
 SMS notifications via Twilio (proof-of-concept). Used for CRITICAL environmental alerts only.
 
 Secrets come from environment variables only; never log tokens or message bodies with secrets.
+
+Simple explanation: Sends a text message to a real phone when an alert is the worst
+level (critical) and the Twilio settings are filled in.
 """
 
 from __future__ import annotations

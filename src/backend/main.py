@@ -4,6 +4,10 @@ API Facade — main FastAPI application entry point.
 This module is the single place where every subsystem router is registered.
 It owns startup lifecycle (seeds + background workers) and middleware.
 
+Simple explanation (alerts): This file plugs in the alerts web routes and starts
+background jobs (including the timer that can create alerts when rules break, and MQTT
+that feeds data upstream of those rules).
+
 Two registration strategies are used:
   Hard imports   — routers that are fully merged and must always load.
                    Import errors surface immediately in CI.
@@ -96,7 +100,7 @@ app = FastAPI(
         "- Alerts (Harmanpreet)\n"
         "- Threshold Management (Harmanpreet)\n"
         "- Data Validation (Ali)\n"
-        "- Account Management (Jason) — pending PR merge\n"
+        "- Account Management (Jason)\n"
         "- Public API (Harmanpreet)\n"
     ),
     version="1.0.0",

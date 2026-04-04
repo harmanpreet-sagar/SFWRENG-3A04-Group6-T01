@@ -1,6 +1,9 @@
 /**
  * App — root routing component.
  *
+ * Simple explanation (alerts): Screens for viewing and managing alerts can be added
+ * as routes here later; today this file wires login, protected thresholds, and auth.
+ *
  * Route structure:
  *  /login       → LoginPage (public, no auth required)
  *  /thresholds  → ThresholdsPage wrapped in RequireAuth (authenticated only)
