@@ -21,7 +21,7 @@
  * this is a prototype demo, not a production deployment.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 
@@ -177,6 +177,10 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
+          <Link to="/" className="font-semibold text-brand-700 hover:text-brand-800 underline-offset-2 hover:underline">
+            ← Public site
+          </Link>
+          <span className="mx-2 text-slate-300">·</span>
           McMaster SCEMAS · Group 6 Tutorial 01
         </p>
       </div>

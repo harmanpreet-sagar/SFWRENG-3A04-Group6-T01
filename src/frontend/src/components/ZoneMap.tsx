@@ -35,24 +35,8 @@
 import { useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import type { Threshold } from '../types';
-
-import L from 'leaflet';
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import iconShadowUrl from 'leaflet/dist/images/marker-shadow.png';
-
-// Fix Leaflet default icon paths broken by Vite bundler — runs once at module load.
-const _defaultIcon = L.icon({ iconUrl, shadowUrl: iconShadowUrl });
-L.Marker.prototype.options.icon = _defaultIcon;
-
-// Real-world coordinates for each campus zone (McMaster / Hamilton ON).
-// Order matches KNOWN_ZONES in types/index.ts, but the map renders from this
-// record, not from KNOWN_ZONES, so any zone missing here simply won't appear.
-const ZONE_COORDS: Record<string, [number, number]> = {
-  'zone-a': [43.2634, -79.9196],
-  'zone-b': [43.2585, -79.9045],
-  'zone-c': [43.2648, -79.9110],
-  'zone-d': [43.2562, -79.9215],
-};
+import { CAMPUS_CENTER, ZONE_COORDS } from '../constants/zoneMap';
+import '../map/leafletDefaultIcon';
 
 // Colours match SeverityBadge and SeverityChart for visual consistency
 // across all three components.
@@ -104,7 +88,7 @@ export default function ZoneMap({ thresholds, selectedZone, onZoneClick }: Props
 
   return (
     <MapContainer
-      center={[43.2610, -79.9130]}
+      center={CAMPUS_CENTER}
       zoom={14}
       style={{ height: '100%', width: '100%', borderRadius: '0.75rem' }}
       zoomControl={true}
