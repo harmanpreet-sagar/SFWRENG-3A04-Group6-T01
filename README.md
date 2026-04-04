@@ -39,36 +39,79 @@ Group 6 - Tutorial 01
 ├── src/                      # Application source (FastAPI, React, Docker Compose, start.sh)
 ```
 
-## Running the application (SCEMAS)
+## How to run the app (SCEMAS)
 
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) running (or another Docker engine with Compose v2).
+The stack is **MQTT (Mosquitto)**, **FastAPI backend**, and **React (Vite) frontend**, orchestrated with **Docker Compose**. Use the helper script from `src/` so TLS certs and Compose are set up correctly.
 
-From the repository root (after `cp .env.example .env` and editing `.env` under `src/`):
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + **Compose v2**: `docker compose`, not the legacy `docker-compose` binary)
+- Git
+
+### 1. Environment file
+
+All runtime secrets and URLs are read from **`src/.env`** (Compose loads it from that directory).
 
 ```bash
 cd src
+cp .env.example .env
+```
+
+Edit `src/.env` and set at least:
+
+- **`SUPABASE_DB_URL`** — PostgreSQL connection string (Supabase)
+- **`JWT_SECRET`** — any strong random string (required for login / protected routes)
+
+Fill in Twilio and other keys as needed for your setup; see comments in `src/.env.example` and [`src/README.md`](src/README.md#environment-variables).
+
+### 2. Start the stack
+
+```bash
+cd src
+chmod +x start.sh    # only once, if your shell says “permission denied”
 ./start.sh
 ```
 
-First-time setup (before running the chunk above):
+This generates Mosquitto TLS certs if they are missing, builds images when needed, and starts **frontend**, **backend**, and **broker**.
 
-1. Create your env file under `src/` and fill in at least `SUPABASE_DB_URL` and `JWT_SECRET` (see `src/.env.example`):
+| Script flag | Purpose |
+|-------------|---------|
+| *(none)* | Build images (if needed) and start services |
+| `./start.sh --no-build` | Faster restart when you only changed mounted code |
+| `./start.sh --regen` | Regenerate MQTT TLS certificates |
+| `./start.sh --help` | Show usage |
 
-   ```bash
-   cd src
-   cp .env.example .env
-   ```
+### 3. Open the app
 
-2. If `start.sh` is not executable yet: `chmod +x start.sh`
+| Service | URL |
+|---------|-----|
+| **Web UI** | [http://localhost:3000](http://localhost:3000) |
+| **API (Swagger)** | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| **MQTT (TLS)** | `localhost:8883` (used by backend/simulator inside Docker) |
 
-3. Optional flags: `./start.sh --no-build` (faster restart), `./start.sh --regen` (new MQTT certs), `./start.sh --help`
+### 4. Stop the stack
 
-Then open:
+From `src/`:
 
-- **Frontend:** http://localhost:3000  
-- **API docs (Swagger):** http://localhost:8000/docs  
+```bash
+docker compose down
+```
 
-More detail (local dev without Docker, env variables, MQTT notes) is in [`src/README.md`](src/README.md).
+(Use `docker-compose down` only if your machine still has the old v1 CLI.)
+
+### Running without Docker (optional)
+
+For **backend** or **frontend** only on your machine, use Node 20+ and Python 3.11+ as described in [`src/README.md`](src/README.md) under **Development**. You still need PostgreSQL (and usually MQTT) reachable at the URLs in your env files.
+
+### Frontend builds (`npm`)
+
+Node dependencies and scripts live under **`src/frontend/`**, not `src/`. For a production build:
+
+```bash
+cd src/frontend
+npm install
+npm run build
+```
 
 ## Getting Started (documentation & diagrams)
 
