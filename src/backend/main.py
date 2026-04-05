@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI):
     from app.shared.api_key_seed import seed_demo_public_api_key
     from app.shared.threshold_seed import seed_default_thresholds
     from app.tasks.threshold_evaluator_worker import threshold_evaluator_worker
+    from app.tasks.aggregation_worker import aggregation_worker
     from app.shared.seed_accounts import seed_demo_accounts
     from app.tasks.mqtt_subscriber import run_mqtt_subscriber
 
@@ -77,6 +78,7 @@ async def lifespan(app: FastAPI):
     seed_demo_public_api_key()
     seed_default_thresholds()
     seed_demo_accounts()
+    aggregation_task = asyncio.create_task(aggregation_worker())
     evaluator_task = asyncio.create_task(threshold_evaluator_worker())
     mqtt_task      = asyncio.create_task(run_mqtt_subscriber())
 
@@ -85,9 +87,9 @@ async def lifespan(app: FastAPI):
     finally:
         # Cancel both tasks together then await them individually so neither
         # blocks the other from receiving its CancelledError.
-        for t in (evaluator_task, mqtt_task):
+        for t in (aggregation_task, evaluator_task, mqtt_task):
             t.cancel()
-        for t in (evaluator_task, mqtt_task):
+        for t in (aggregation_task, evaluator_task, mqtt_task):
             with contextlib.suppress(asyncio.CancelledError):
                 await t
 
@@ -151,6 +153,7 @@ def _try_include_router(module_path: str, label: str) -> None:
 
 # ── Merged routers — hard imports (CI catches any breakage immediately) ────────
 from app.routers import alerts       as alerts_router
+from app.routers import aggregation  as aggregation_router
 from app.routers import thresholds   as thresholds_router
 from app.routers import validation   as validation_router
 from app.routers import public_demo  as public_demo_router
@@ -158,6 +161,7 @@ from app.routers import public_zones as public_zones_router
 from app.routers import accounts     as accounts_router
 
 app.include_router(alerts_router.router)
+app.include_router(aggregation_router.router)
 app.include_router(accounts_router.router)
 app.include_router(thresholds_router.router)
 app.include_router(validation_router.router)

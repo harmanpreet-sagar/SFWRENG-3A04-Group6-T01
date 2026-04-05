@@ -23,30 +23,26 @@ router = APIRouter(prefix="/aggregation", tags=["Aggregation"])
 
 @router.get("/zones", response_model=AggregationZonesResponse)
 def get_aggregation_zones(
-    _user: CurrentUser = Depends(require_operator_or_admin),
+    _: CurrentUser = Depends(require_operator_or_admin),
 ) -> AggregationZonesResponse:
-    rows = list_latest_zone_aggregates()
-    return AggregationZonesResponse(zones=rows, total=len(rows))
+    return list_latest_zone_aggregates()
 
 
 @router.get("/zones/{zone}", response_model=AggregationZoneSummary)
 def get_aggregation_zone(
     zone: Annotated[str, Path(..., min_length=1, max_length=256)],
-    _user: CurrentUser = Depends(require_operator_or_admin),
+    _: CurrentUser = Depends(require_operator_or_admin),
 ) -> AggregationZoneSummary:
-    zone_clean = zone.strip()
-    summary = get_latest_zone_aggregates(zone_clean)
-
+    summary = get_latest_zone_aggregates(zone.strip())
     if summary is None:
         raise HTTPException(
             status_code=404,
             detail={
                 "error": "zone_not_found",
                 "message": "No aggregated data exists for this zone.",
-                "zone": zone_clean,
+                "zone": zone.strip(),
             },
         )
-
     return summary
 
 
@@ -55,22 +51,6 @@ def get_aggregation_zone_history(
     zone: Annotated[str, Path(..., min_length=1, max_length=256)],
     metric: Annotated[str, Query(..., min_length=1)],
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
-    _user: CurrentUser = Depends(require_operator_or_admin),
+    _: CurrentUser = Depends(require_operator_or_admin),
 ) -> AggregationHistoryResponse:
-    zone_clean = zone.strip()
-    metric_clean = metric.strip()
-
-    history = get_zone_metric_history(zone_clean, metric_clean, limit=limit)
-
-    if history is None:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "error": "aggregation_not_found",
-                "message": "No aggregation history found.",
-                "zone": zone_clean,
-                "metric": metric_clean,
-            },
-        )
-
-    return history
+    return get_zone_metric_history(zone.strip(), metric.strip(), limit=limit)

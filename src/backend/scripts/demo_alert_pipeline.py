@@ -59,8 +59,11 @@ def main() -> int:
             )
             cur.execute(
                 """
-                INSERT INTO public.aggregated_data (zone, metric, value, window_end)
-                VALUES (%s, %s, %s, now())
+                INSERT INTO public.aggregated_data (
+                    zone, metric, aggregation_window, aggregation_type,
+                    value, window_start, window_end
+                )
+                VALUES (%s, %s, '5m', 'avg', %s, now() - interval '5 minutes', now())
                 """,
                 (ZONE, METRIC, 900.0),
             )
