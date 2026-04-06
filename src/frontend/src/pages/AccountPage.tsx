@@ -38,12 +38,12 @@ export default function AccountsPage() {
 
     const [tab, setTab] = useState<Tab>('accounts');
 
-    // ── Accounts ────────────────────────────────────────────────────────────────
+    // accounts
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [accountsLoading, setAccountsLoading] = useState(true);
     const [accountsError, setAccountsError] = useState<string | null>(null);
 
-    // Inline create form (admin only)
+    // create form (admin only)
     const [createName, setCreateName] = useState('');
     const [createEmail, setCreateEmail] = useState('');
     const [createPassword, setCreatePassword] = useState('');
@@ -51,7 +51,7 @@ export default function AccountsPage() {
     const [createLoading, setCreateLoading] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
-    // Inline change-password
+    // change-password
     const [pwAid, setPwAid] = useState<number | null>(null);
     const [newPw, setNewPw] = useState('');
     const [pwError, setPwError] = useState<string | null>(null);
@@ -60,14 +60,14 @@ export default function AccountsPage() {
     // Deactivate confirm
     const [deactivateTarget, setDeactivateTarget] = useState<Account | null>(null);
 
-    // ── Pending requests (admin only) ────────────────────────────────────────────
+    // pending requests (admin only)
     const [pending, setPending] = useState<PendingRequest[]>([]);
     const [pendingLoading, setPendingLoading] = useState(false);
     const [pendingError, setPendingError] = useState<string | null>(null);
     const [denyTarget, setDenyTarget] = useState<PendingRequest | null>(null);
     const [approveLoading, setApproveLoading] = useState<number | null>(null);
 
-    // ── Audit log (admin only) ────────────────────────────────────────────────────
+    // audit log (admin only)
     const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
     const [auditLoading, setAuditLoading] = useState(false);
     const [auditError, setAuditError] = useState<string | null>(null);
@@ -75,8 +75,7 @@ export default function AccountsPage() {
     const [filterDateFrom, setFilterDateFrom] = useState('');
     const [filterDateTo, setFilterDateTo] = useState('');
 
-    // ── Loaders ──────────────────────────────────────────────────────────────────
-
+    // loaders
     const loadAccounts = useCallback(async () => {
         setAccountsError(null);
         try {
@@ -134,7 +133,7 @@ export default function AccountsPage() {
     useEffect(() => { void loadPending(); }, [loadPending]);
     useEffect(() => { void loadAuditLog(); }, [loadAuditLog]);
 
-    // ── Handlers ─────────────────────────────────────────────────────────────────
+    // handlers
 
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault();
@@ -205,12 +204,12 @@ export default function AccountsPage() {
         }
     }
 
-    // ── Stats (admin only) ───────────────────────────────────────────────────────
+    // stats (admin only)
     const totalActive = accounts.filter(a => a.is_active).length;
     const totalAdmins = accounts.filter(a => a.clearance === 'admin').length;
     const totalOperators = accounts.filter(a => a.clearance === 'operator').length;
 
-    // ── Tabs — operators only see Accounts ───────────────────────────────────────
+    // tabs (operators can only see accounts)
     const visibleTabs = ([
         { key: 'accounts' as Tab, label: 'Accounts', adminOnly: false },
         { key: 'pending' as Tab, label: `Pending requests${pending.length > 0 ? ` (${pending.length})` : ''}`, adminOnly: true },
