@@ -11,8 +11,16 @@ WHERE NOT EXISTS (
     WHERE t.zone = 'demo_zone' AND t.metric = 'pm25' AND t.is_active = TRUE
 );
 
-INSERT INTO public.aggregated_data (zone, metric, value, window_end)
-VALUES ('demo_zone', 'pm25', 99.0, now());
+INSERT INTO public.aggregated_data (
+    zone,
+    metric,
+    aggregation_window,
+    aggregation_type,
+    value,
+    window_start,
+    window_end
+)
+VALUES ('demo_zone', 'pm25', '5m', 'avg', 99.0, now() - interval '5 minutes', now());
 
 -- Optional: clear active demo alert so you can re-trigger SMS after resolving/testing
 -- DELETE FROM public.alerts

@@ -36,17 +36,32 @@ import {
   activateThreshold, deactivateThreshold, deleteThreshold,
 } from '../api/thresholds';
 import { listAlerts } from '../api/alerts';
+import { getAggregationHistory, getAggregationZones } from '../api/aggregation';
+import { getValidationEvents } from '../api/validation';
 import { API_BASE } from '../api/client';
 import { openAlertSseStream } from '../lib/sseAlerts';
 import { useAuth } from '../context/AuthContext';
-import type { Alert, SseAlertEvent, Threshold, ThresholdCreate } from '../types';
+import type {
+  AggregationHistoryResponse,
+  AggregationZoneSummary,
+  Alert,
+  SseAlertEvent,
+  Threshold,
+  ThresholdCreate,
+  ValidationEventRecord,
+  ValidationIssue,
+} from '../types';
 import ThresholdTable from '../components/ThresholdTable';
 import ThresholdFormModal from '../components/ThresholdFormModal';
 import SeverityChart from '../components/SeverityChart';
 import ZoneMap from '../components/ZoneMap';
 import ViolationAlertModal from '../components/ViolationAlertModal';
 import AlertsBrowserModal from '../components/AlertsBrowserModal';
+import AggregationHistoryChart, { type HistoryViewMode } from '../components/AggregationHistoryChart';
+import MetricGauge from '../components/MetricGauge';
+import PipelineHealthIndicator from '../components/PipelineHealthIndicator';
 import { ScemasLogoMark } from '../components/ScemasLogoMark';
+import { KNOWN_METRICS } from '../types';
 
 type Filter = { zone: string; metric: string; status: 'all' | 'active' | 'inactive' };
 
@@ -64,6 +79,22 @@ export default function ThresholdsPage() {
   const [showAlertsBrowser, setShowAlertsBrowser] = useState(false);
   const [browserInitialShowAll, setBrowserInitialShowAll] = useState(false);
   const [violationQueue, setViolationQueue] = useState<SseAlertEvent[]>([]);
+  const [aggregationZones, setAggregationZones] = useState<AggregationZoneSummary[]>([]);
+  const [aggregationLoading, setAggregationLoading] = useState(true);
+  const [aggregationError, setAggregationError] = useState<string | null>(null);
+  const [validationEvents, setValidationEvents] = useState<ValidationEventRecord[]>([]);
+  const [validationLoading, setValidationLoading] = useState(true);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationZone, setValidationZone] = useState('');
+  const [validationIssueStatus, setValidationIssueStatus] = useState<'all' | 'anomaly' | 'failed'>('all');
+  const [chartZone, setChartZone] = useState('zone-a');
+  const [chartMetric, setChartMetric] = useState('aqi');
+  const [chartViewMode, setChartViewMode] = useState<HistoryViewMode>('5m-avg-line');
+  const [gaugeZone, setGaugeZone] = useState('zone-a');
+  const [gaugeMetric, setGaugeMetric] = useState('aqi');
+  const [historyData, setHistoryData] = useState<AggregationHistoryResponse | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // filter drives both the zone map selection highlight and the table rows shown.
   const [filter, setFilter] = useState<Filter>({ zone: '', metric: '', status: 'all' });
@@ -124,6 +155,100 @@ export default function ThresholdsPage() {
     void loadAlerts();
   }, [loadAlerts]);
 
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void loadAlerts();
+    }, 10_000);
+    return () => window.clearInterval(id);
+  }, [loadAlerts]);
+
+  const loadAggregationZones = useCallback(async () => {
+    setAggregationLoading(true);
+    setAggregationError(null);
+    try {
+      const data = await getAggregationZones();
+      setAggregationZones(data.zones);
+    } catch (err: unknown) {
+      if ((err as { response?: { status?: number } })?.response?.status === 401) {
+        signOut();
+        navigate('/login', { replace: true });
+        return;
+      }
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setAggregationError(typeof detail === 'string' ? detail : 'Failed to load aggregate summaries.');
+    } finally {
+      setAggregationLoading(false);
+    }
+  }, [navigate, signOut]);
+
+  const loadValidationStatus = useCallback(async () => {
+    setValidationLoading(true);
+    setValidationError(null);
+    try {
+      const events = await getValidationEvents();
+      setValidationEvents(events);
+    } catch {
+      setValidationError('Failed to load pipeline health.');
+    } finally {
+      setValidationLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAggregationZones();
+    void loadValidationStatus();
+  }, [loadAggregationZones, loadValidationStatus]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void loadAggregationZones();
+      void loadValidationStatus();
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [loadAggregationZones, loadValidationStatus]);
+
+  useEffect(() => {
+    if (!aggregationZones.length) return;
+    const zoneIds = aggregationZones.map(z => z.zone);
+    if (!zoneIds.includes(chartZone)) setChartZone(zoneIds[0]);
+    if (!zoneIds.includes(gaugeZone)) setGaugeZone(zoneIds[0]);
+  }, [aggregationZones, chartZone, gaugeZone]);
+
+  const loadHistory = useCallback(async () => {
+    if (!chartZone || !chartMetric) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const aggregationWindow = chartViewMode === '1h-max-scatter' ? '1h' : '5m';
+      const aggregationType = chartViewMode === '1h-max-scatter' ? 'max' : 'avg';
+      const limit = chartViewMode === '1h-max-scatter' ? 24 : 24;
+      const data = await getAggregationHistory(
+        chartZone,
+        chartMetric,
+        limit,
+        aggregationWindow,
+        aggregationType,
+      );
+      setHistoryData(data);
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setHistoryError(typeof detail === 'string' ? detail : 'Failed to load aggregation history.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [chartMetric, chartViewMode, chartZone]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void loadHistory();
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [loadHistory]);
+
   const handleSseAlert = useCallback(
     (evt: SseAlertEvent) => {
       if (evt.event_type === 'alert.created') {
@@ -160,6 +285,44 @@ export default function ThresholdsPage() {
 
   const activeAlertCount = alerts.filter(a => a.status === 'active').length;
   const currentViolation = violationQueue[0] ?? null;
+  const selectedAggregationZone =
+    aggregationZones.find(z => z.zone === selectedZone) ?? aggregationZones[0] ?? null;
+  const gaugeZoneSummary =
+    aggregationZones.find(z => z.zone === gaugeZone) ?? aggregationZones[0] ?? null;
+  const currentGaugeMetric =
+    gaugeZoneSummary?.metrics.find(m => m.metric === gaugeMetric)
+    ?? gaugeZoneSummary?.metrics[0]
+    ?? null;
+  const availableZones = aggregationZones.map(z => z.zone);
+  const validationScopedEvents = validationEvents.filter(event =>
+    !validationZone || event.zone === validationZone,
+  );
+  const validationTopCounts = validationScopedEvents.reduce(
+    (acc, event) => {
+      if (event.status === 'VALID') acc.valid += 1;
+      else if (event.status === 'ANOMALY') acc.anomaly += 1;
+      else if (event.status === 'FAILED') acc.failed += 1;
+      return acc;
+    },
+    { valid: 0, anomaly: 0, failed: 0 },
+  );
+  const validationIssues: ValidationIssue[] = validationScopedEvents
+    .filter(event => event.status === 'ANOMALY' || event.status === 'FAILED')
+    .filter(event => validationIssueStatus === 'all' || event.status === validationIssueStatus.toUpperCase())
+    .map(event => ({
+      status: event.status.toLowerCase(),
+      zone: event.zone,
+      metric: event.metric_type,
+      value: event.raw_value,
+      timestamp: event.timestamp,
+      reason: event.reason ?? 'Validation flagged this reading.',
+      sensor_id: event.sensor_id,
+    }));
+  const validationWidgetStatus = {
+    valid: validationTopCounts.valid,
+    anomaly: validationTopCounts.anomaly,
+    failed: validationTopCounts.failed,
+  };
 
   // ── CRUD handlers ────────────────────────────────────────────────────────────
   // Handlers receive the minimal payload from the form/table and delegate
@@ -214,6 +377,11 @@ export default function ThresholdsPage() {
   // same zone again deselects it (zone === selectedZone → empty string clears filter).
   function handleZoneClick(zone: string) {
     setSelectedZone(zone || null);
+    setValidationZone(zone);
+    if (zone) {
+      setChartZone(zone);
+      setGaugeZone(zone);
+    }
     setFilter(f => ({ ...f, zone: zone }));
   }
 
@@ -369,11 +537,18 @@ export default function ThresholdsPage() {
               </div>
             </div>
             <div className="h-60">
-              <ZoneMap
-                thresholds={thresholds}
-                selectedZone={selectedZone}
-                onZoneClick={handleZoneClick}
-              />
+              {aggregationLoading ? (
+                <div className="flex h-full items-center justify-center text-sm text-ink-500">
+                  Loading live zone summaries…
+                </div>
+              ) : (
+                <ZoneMap
+                  zoneSummaries={aggregationZones}
+                  alerts={alerts}
+                  selectedZone={selectedZone}
+                  onZoneClick={handleZoneClick}
+                />
+              )}
             </div>
           </div>
 
@@ -391,6 +566,58 @@ export default function ThresholdsPage() {
           </div>
         </div>
 
+        {aggregationError && (
+          <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm text-red-900">
+            {aggregationError}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+          <AggregationHistoryChart
+            zone={chartZone}
+            metric={chartMetric}
+            points={historyData?.points ?? []}
+            aggregationWindow={historyData?.aggregation_window ?? (chartViewMode === '1h-max-scatter' ? '1h' : '5m')}
+            aggregationType={historyData?.aggregation_type ?? (chartViewMode === '1h-max-scatter' ? 'max' : 'avg')}
+            viewMode={chartViewMode}
+            loading={historyLoading}
+            error={historyError}
+            zones={availableZones}
+            metrics={[...KNOWN_METRICS]}
+            selectedZone={chartZone}
+            selectedMetric={chartMetric}
+            selectedViewMode={chartViewMode}
+            onZoneChange={setChartZone}
+            onMetricChange={setChartMetric}
+            onViewModeChange={setChartViewMode}
+          />
+
+          <MetricGauge
+            zones={availableZones}
+            metrics={[...KNOWN_METRICS]}
+            selectedZone={gaugeZone}
+            selectedMetric={gaugeMetric}
+            onZoneChange={setGaugeZone}
+            onMetricChange={setGaugeMetric}
+            zone={gaugeZoneSummary?.zone ?? null}
+            metric={currentGaugeMetric?.metric ?? 'aqi'}
+            value={currentGaugeMetric?.value ?? null}
+            maxValue={currentGaugeMetric?.metric === 'temperature' ? 50 : currentGaugeMetric?.metric === 'humidity' ? 100 : currentGaugeMetric?.metric === 'noise' ? 140 : 200}
+          />
+
+          <PipelineHealthIndicator
+            status={validationWidgetStatus}
+            issues={validationIssues}
+            zones={availableZones}
+            selectedZone={validationZone}
+            selectedIssueStatus={validationIssueStatus}
+            onZoneChange={setValidationZone}
+            onIssueStatusChange={setValidationIssueStatus}
+            loading={validationLoading}
+            error={validationError}
+          />
+        </div>
+
         {/* ── Table card ──────────────────────────────────────────────────────── */}
         <div className="card border-ink-200/80 overflow-hidden shadow-card-lg">
           <div className="px-4 sm:px-5 py-4 border-b border-ink-100 bg-gradient-to-r from-white via-parchment/50 to-moss-50/30 flex flex-wrap items-center gap-3 justify-between">
@@ -406,7 +633,16 @@ export default function ThresholdsPage() {
               {/* Zone filter — changing this also moves the map highlight */}
               <select
                 value={filter.zone}
-                onChange={e => { setFilter(f => ({ ...f, zone: e.target.value })); setSelectedZone(e.target.value || null); }}
+                onChange={e => {
+                  const zone = e.target.value;
+                  setFilter(f => ({ ...f, zone: zone }));
+                  setSelectedZone(zone || null);
+                  setValidationZone(zone);
+                  if (zone) {
+                    setChartZone(zone);
+                    setGaugeZone(zone);
+                  }
+                }}
                 className="input !py-1.5 !text-xs w-32"
               >
                 <option value="">All zones</option>
@@ -450,6 +686,9 @@ export default function ThresholdsPage() {
                 onClick={() => {
                   void reload();
                   void loadAlerts();
+                  void loadAggregationZones();
+                  void loadValidationStatus();
+                  void loadHistory();
                 }}
                 className="btn-ghost p-2 rounded-xl border border-transparent hover:border-ink-200"
                 title="Refresh thresholds and alerts"
