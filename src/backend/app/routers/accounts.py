@@ -99,8 +99,8 @@ def login(body: LoginRequest) -> LoginResponse:
     return LoginResponse(
         message="Identity verified",
         identity_verified=True,
-        account=account,
-        access_token=token,
+        account=result["account"],
+        access_token="poc-token",
     )
 
 
