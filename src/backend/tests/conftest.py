@@ -27,6 +27,7 @@ _OPTIONAL_MODULES = [
     "app.shared.threshold_seed",   # harman branch — default threshold seeding
     "app.shared.seed_accounts",    # jason branch  — demo account seeding
     "app.tasks.mqtt_subscriber",   # ali branch    — MQTT background worker
+    "app.tasks.aggregation_worker",
 ]
 for _mod in _OPTIONAL_MODULES:
     try:
@@ -65,6 +66,7 @@ def _patch_startup_functions():
       seed_demo_public_api_key   — would hit the DB
       seed_default_thresholds    — would hit the DB (harman branch)
       seed_demo_accounts         — would hit the DB (jason branch)
+      aggregation_worker         — long-running polling loop
       threshold_evaluator_worker — long-running polling loop
       run_mqtt_subscriber        — opens a TLS connection to Mosquitto (ali branch)
     """
@@ -72,6 +74,10 @@ def _patch_startup_functions():
         patch("app.shared.api_key_seed.seed_demo_public_api_key"),
         patch("app.shared.threshold_seed.seed_default_thresholds"),
         patch("app.shared.seed_accounts.seed_demo_accounts"),
+        patch(
+            "app.tasks.aggregation_worker.aggregation_worker",
+            _noop_worker,
+        ),
         patch(
             "app.tasks.threshold_evaluator_worker.threshold_evaluator_worker",
             _noop_worker,

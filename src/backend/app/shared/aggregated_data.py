@@ -10,16 +10,19 @@ from pydantic import BaseModel, Field
 class AggregatedDataBase(BaseModel):
     zone: str = Field(..., min_length=1)
     metric: str = Field(..., min_length=1)
+    aggregation_window: str = Field(..., min_length=1)
+    aggregation_type: str = Field(..., min_length=1)
     value: float
+    window_start: datetime
+    window_end: datetime
 
 
 class AggregatedDataCreate(AggregatedDataBase):
-    window_end: datetime
+    pass
 
 
 class AggregatedDataResponse(AggregatedDataBase):
     id: int
-    window_end: datetime
     created_at: datetime
 
     class Config:
